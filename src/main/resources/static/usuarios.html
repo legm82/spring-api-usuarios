@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Usuarios - Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; }
+    h1 { font-size: 20px; }
+    form { margin-bottom: 12px; }
+    label { display: inline-block; width: 60px; }
+    input { margin-right: 8px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f3f3f3; }
+    .status { margin-top: 8px; color: #333; }
+    .error { color: #b00020; }
+    .ok { color: #007700; }
+  </style>
+</head>
+<body>
+  <h1>Gestión de Usuarios (Demo)</h1>
+
+  <section>
+    <h2>Crear usuario</h2>
+    <form id="form-crear" onsubmit="return false;">
+      <label for="c-id">id</label>
+      <input id="c-id" type="number" value="1" />
+      <label for="c-nombre">nombre</label>
+      <input id="c-nombre" type="text" value="Ana" />
+      <label for="c-edad">edad</label>
+      <input id="c-edad" type="number" value="30" />
+      <button id="btn-crear">Crear</button>
+    </form>
+    <div id="crear-status" class="status"></div>
+  </section>
+
+  <section>
+    <h2>Buscar usuario por id</h2>
+    <form id="form-buscar" onsubmit="return false;">
+      <label for="b-id">id</label>
+      <input id="b-id" type="number" />
+      <button id="btn-buscar">Buscar</button>
+    </form>
+    <div id="buscar-status" class="status"></div>
+    <pre id="buscar-result"></pre>
+  </section>
+
+  <section>
+    <h2>Lista de usuarios</h2>
+    <button id="btn-listar">Refrescar lista</button>
+    <div id="listar-status" class="status"></div>
+    <div id="tabla-container"></div>
+  </section>
+
+  <script>
+    const base = window.location.origin; // http://localhost:8080
+
+    async function crearUsuario() {
+      const id = Number(document.getElementById('c-id').value);
+      const nombre = document.getElementById('c-nombre').value.trim();
+      const edad = Number(document.getElementById('c-edad').value);
+      const status = document.getElementById('crear-status');
+      status.className = 'status';
+      status.textContent = 'Enviando...';
+
+      try {
+        const res = await fetch(base + '/usuarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, nombre, edad })
+        });
+
+        if (!res.ok) {
+          const t = await res.text();
+          status.classList.add('error');
+          status.textContent = `Error ${res.status}: ${t}`;
+          return;
+        }
+
+        const data = await res.json();
+        status.classList.add('ok');
+        status.textContent = 'Usuario creado: ' + JSON.stringify(data);
+        await listarUsuarios();
+      } catch (e) {
+        status.classList.add('error');
+        status.textContent = 'Error de conexión: ' + e;
+      }
+    }
+
+    async function buscarUsuario() {
+      const id = Number(document.getElementById('b-id').value);
+      const status = document.getElementById('buscar-status');
+      const result = document.getElementById('buscar-result');
+      status.className = 'status';
+      result.textContent = '';
+
+      if (!id) { status.classList.add('error'); status.textContent = 'Introduce un id válido'; return; }
+      status.textContent = 'Buscando...';
+
+      try {
+        const res = await fetch(base + '/usuarios/' + id);
+        if (res.status === 404) {
+          status.classList.add('error');
+          status.textContent = 'No encontrado (404)';
+          return;
+        }
+        if (!res.ok) {
+          const t = await res.text();
+          status.classList.add('error');
+          status.textContent = `Error ${res.status}: ${t}`;
+          return;
+        }
+        const data = await res.json();
+        status.classList.add('ok');
+        status.textContent = 'Usuario encontrado';
+        result.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        status.classList.add('error');
+        status.textContent = 'Error de conexión: ' + e;
+      }
+    }
+
+    function renderTable(users) {
+      const container = document.getElementById('tabla-container');
+      if (!Array.isArray(users) || users.length === 0) {
+        container.innerHTML = '<p>No hay usuarios.</p>';
+        return;
+      }
+      let html = '<table><thead><tr><th>id</th><th>nombre</th><th>edad</th></tr></thead><tbody>';
+      for (const u of users) {
+        html += `<tr><td>${u.id ?? ''}</td><td>${escapeHtml(u.nombre ?? '')}</td><td>${u.edad ?? ''}</td></tr>`;
+      }
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    }
+
+    async function listarUsuarios() {
+      const status = document.getElementById('listar-status');
+      status.className = 'status';
+      status.textContent = 'Cargando...';
+      try {
+        const res = await fetch(base + '/usuarios');
+        if (!res.ok) {
+          status.classList.add('error');
+          status.textContent = 'Error al listar: ' + res.status;
+          return;
+        }
+        const data = await res.json();
+        renderTable(data);
+        status.classList.add('ok');
+        status.textContent = `Usuarios: ${Array.isArray(data) ? data.length : 0}`;
+      } catch (e) {
+        status.classList.add('error');
+        status.textContent = 'Error de conexión: ' + e;
+      }
+    }
+
+    document.getElementById('btn-crear').addEventListener('click', crearUsuario);
+    document.getElementById('btn-buscar').addEventListener('click', buscarUsuario);
+    document.getElementById('btn-listar').addEventListener('click', listarUsuarios);
+
+    // cargar lista al abrir
+    window.addEventListener('load', listarUsuarios);
+  </script>
+</body>
+</html>

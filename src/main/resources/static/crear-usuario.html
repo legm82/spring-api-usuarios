@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<body>
+  <h3>Crear usuario (POST /usuarios)</h3>
+  <form id="f">
+    id: <input id="id" value="1"><br>
+    nombre: <input id="nombre" value="Ana"><br>
+    edad: <input id="edad" value="30"><br>
+    <button type="button" onclick="crear()">Crear</button>
+  </form>
+  <pre id="out"></pre>
+  <script>
+    function crear() {
+      const u = {
+        id: Number(document.getElementById('id').value),
+        nombre: document.getElementById('nombre').value,
+        edad: Number(document.getElementById('edad').value)
+      };
+      fetch('http://localhost:8080/usuarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(u)
+      }).then(r => r.text()).then(t => document.getElementById('out').innerText = t)
+        .catch(e => document.getElementById('out').innerText = 'Error: ' + e);
+    }
+  </script>
+</body>
+</html>
+
